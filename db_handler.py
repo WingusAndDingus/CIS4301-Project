@@ -6,8 +6,8 @@ from models.Book import Book
 from models.Loan import Loan
 from models.User import User
 
-UFID = "00000000"
-FULLNAME = "Lastname, Firstname"
+UFID = "58200371"
+FULLNAME = "Hernandez Martin, Fernando"
 
 conn = connect(user=DB_CONFIG["username"], password=DB_CONFIG["password"], host=DB_CONFIG["host"],
                database=DB_CONFIG["database"], port=DB_CONFIG["port"])#, collation='utf8mb4_unicode_ci')

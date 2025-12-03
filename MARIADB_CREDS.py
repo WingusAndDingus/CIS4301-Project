@@ -1,6 +1,6 @@
 DB_CONFIG = {
-    "username": "username",
-    "password": "password",
+    "username": "ferhe",
+    "password": "ferhe",
     "port": 3306,
     "host": "localhost",
     "database": "library",
