@@ -100,7 +100,7 @@ def checkout_book(isbn: str = None, account_id: str = None):
     isbn - A string containing the ISBN for the book being checked out. isbn will never be None.
     account_id - A string containing the account id of the user checking out a book. account_id will never be None.
     """
-    # checkout_date = current date
+    # checkout_date = curr
     # due_date = curr + 14
     query = """
         INSERT INTO Loan (isbn, account_id, checkout_date, due_date)
