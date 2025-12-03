@@ -1,0 +1,162 @@
+-- 1
+CREATE VIEW OverdueBooks AS
+SELECT
+    u.account_id,
+    u.name,
+    l.isbn,
+    l.due_date,
+    DATEDIFF(CURDATE(), l.due_date) AS days_overdue
+FROM Loan l
+JOIN User u
+    ON u.account_id = l.account_id
+WHERE l.due_date < CURDATE();
+
+-- 2
+CREATE VIEW NumOfExtensions AS
+SELECT
+    u.account_id,
+    u.name,
+    COUNT(*) AS num_extensions
+FROM (
+    SELECT account_id, checkout_date, due_date
+    FROM Loan
+    UNION ALL
+    SELECT account_id, checkout_date, due_date
+    FROM LoanHistory
+) x
+JOIN User u
+    ON u.account_id = x.account_id
+WHERE DATEDIFF(x.due_date, x.checkout_date) > 14
+GROUP BY u.account_id, u.name;
+
+-- 3
+DELIMITER $$
+CREATE TRIGGER UpdateWaitlist
+AFTER DELETE ON Loan
+FOR EACH ROW
+BEGIN
+    DELETE FROM Waitlist
+    WHERE isbn = OLD.isbn
+      AND place_in_line = 1;
+
+    UPDATE Waitlist
+    SET place_in_line = place_in_line - 1
+    WHERE isbn = OLD.isbn
+      AND place_in_line > 1;
+END$$
+DELIMITER ;
+
+-- 4
+DELIMITER $$
+CREATE TRIGGER InsertLoanHistory
+AFTER DELETE ON Loan
+FOR EACH ROW
+BEGIN
+    INSERT INTO LoanHistory (isbn, account_id, checkout_date, due_date, return_date)
+    VALUES (OLD.isbn, OLD.account_id, OLD.checkout_date, OLD.due_date, CURDATE());
+END$$
+DELIMITER ;
+
+-- 5
+CREATE TABLE Book (
+    isbn VARCHAR(16) NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    author VARCHAR(128),
+    publication_year INT,
+    publisher VARCHAR(128),
+    num_owned INT NOT NULL,
+    PRIMARY KEY (isbn)
+);
+
+CREATE TABLE User (
+    account_id VARCHAR(16) NOT NULL,
+    name VARCHAR(32) NOT NULL,
+    address VARCHAR(64),
+    phone_number VARCHAR(16),
+    email VARCHAR(32),
+    PRIMARY KEY (account_id)
+);
+
+CREATE TABLE Loan (
+    isbn VARCHAR(16) NOT NULL,
+    account_id VARCHAR(16) NOT NULL,
+    checkout_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    PRIMARY KEY (isbn, account_id),
+    FOREIGN KEY (isbn) REFERENCES Book(isbn),
+    FOREIGN KEY (account_id) REFERENCES User(account_id)
+);
+
+CREATE TABLE LoanHistory (
+    isbn VARCHAR(16) NOT NULL,
+    account_id VARCHAR(16) NOT NULL,
+    checkout_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    return_date DATE NOT NULL,
+    PRIMARY KEY (isbn, account_id, checkout_date),
+    FOREIGN KEY (isbn) REFERENCES Book(isbn),
+    FOREIGN KEY (account_id) REFERENCES User(account_id)
+);
+
+CREATE TABLE Waitlist (
+    isbn VARCHAR(16) NOT NULL,
+    account_id VARCHAR(16) NOT NULL,
+    place_in_line INT NOT NULL,
+    PRIMARY KEY (isbn, account_id),
+    FOREIGN KEY (isbn) REFERENCES Book(isbn),
+    FOREIGN KEY (account_id) REFERENCES User(account_id)
+);
+
+-- 6
+SELECT
+    w.isbn,
+    MIN(l.due_date) AS soonest_due_date
+FROM Waitlist w
+JOIN Loan l
+    ON l.isbn = w.isbn
+GROUP BY w.isbn;
+
+-- 7
+SELECT
+    b.isbn,
+    b.title,
+    COALESCE(t1.total_checked_out, 0) AS total_checked_out,
+    COALESCE(t2.currently_checked_out, 0) AS currently_checked_out,
+    COALESCE(t3.currently_waitlisted, 0) AS currently_waitlisted
+FROM Book b
+LEFT JOIN (
+    SELECT isbn, COUNT(*) AS total_checked_out
+    FROM (
+        SELECT isbn FROM Loan
+        UNION ALL
+        SELECT isbn FROM LoanHistory
+    ) y
+    GROUP BY isbn
+) t1 ON b.isbn = t1.isbn
+LEFT JOIN (
+    SELECT isbn, COUNT(*) AS currently_checked_out
+    FROM Loan
+    GROUP BY isbn
+) t2 ON b.isbn = t2.isbn
+LEFT JOIN (
+    SELECT isbn, COUNT(*) AS currently_waitlisted
+    FROM Waitlist
+    GROUP BY isbn
+) t3 ON b.isbn = t3.isbn
+WHERE COALESCE(t1.total_checked_out, 0) > 0
+   OR COALESCE(t2.currently_checked_out, 0) > 0
+   OR COALESCE(t3.currently_waitlisted, 0) > 0;
+
+-- 8
+SELECT
+    u.account_id,
+    u.name,
+    u.address
+FROM User u
+WHERE u.address IN (
+    SELECT address
+    FROM User
+    GROUP BY address
+    HAVING COUNT(*) > 1
+)
+ORDER BY u.address, u.account_id;

@@ -82,7 +82,6 @@ def edit_user(original_account_id: str = None, new_user: User = None):
         set_clauses.append("email = ?")
         params.append(new_user.email)
 
-    # Nothing to update
     if not set_clauses:
         return
 
@@ -102,7 +101,7 @@ def checkout_book(isbn: str = None, account_id: str = None):
     account_id - A string containing the account id of the user checking out a book. account_id will never be None.
     """
     # checkout_date = current date
-    # due_date = current date + 2 weeks (14 days)
+    # due_date = curr + 14
     query = """
         INSERT INTO Loan (isbn, account_id, checkout_date, due_date)
         VALUES (?, ?, CURRENT_DATE(), DATE_ADD(CURRENT_DATE(), INTERVAL 2 WEEK))
@@ -117,14 +116,13 @@ def waitlist_user(isbn: str = None, account_id: str = None) -> int:
 
     returns an integer that is the user's place in line to check out the book.
     """
-    # Find current max place_in_line for this isbn
+    # curr max place_in_line for isbn
     cur.execute(
         "SELECT COALESCE(MAX(place_in_line), 0) FROM Waitlist WHERE isbn = ?",
         [isbn],
     )
     (current_max,) = cur.fetchone()
     new_place = current_max + 1
-
     cur.execute(
         """
         INSERT INTO Waitlist (isbn, account_id, place_in_line)
@@ -132,7 +130,6 @@ def waitlist_user(isbn: str = None, account_id: str = None) -> int:
         """,
         [isbn, account_id, new_place],
     )
-
     return new_place
 
 
@@ -140,13 +137,10 @@ def update_waitlist(isbn: str = None):
     """
     isbn - A string containing the ISBN for a book on the waitlist. isbn will never be None.
     """
-    # Remove the person at the front of the line (place_in_line = 1)
     cur.execute(
         "DELETE FROM Waitlist WHERE isbn = ? AND place_in_line = 1",
         [isbn],
     )
-
-    # Move everyone else up by one place
     cur.execute(
         """
         UPDATE Waitlist
@@ -162,8 +156,6 @@ def return_book(isbn: str = None, account_id: str = None):
     isbn - A string containing the ISBN for the book that the user desires to return. isbn will never be None
     account_id - A string containing the account id for the user that wants to return the book. account_id will never be None
     """
-    # Insert a row into LoanHistory with checkout_date, due_date from Loan
-    # and return_date = CURRENT_DATE()
     cur.execute(
         """
         INSERT INTO LoanHistory (isbn, account_id, checkout_date, due_date, return_date)
@@ -173,8 +165,7 @@ def return_book(isbn: str = None, account_id: str = None):
         """,
         [isbn, account_id],
     )
-
-    # Delete the loan entry since the book has been returned
+    # Delete loan entry bc the book is returned
     cur.execute(
         "DELETE FROM Loan WHERE isbn = ? AND account_id = ?",
         [isbn, account_id],
@@ -187,7 +178,6 @@ def grant_extension(isbn: str = None, account_id: str = None):
     isbn - A string containing the ISBN for a book. isbn will never be None.
     account_id - A string containing the account id for a user. account_id will never be None.
     """
-    # New due_date = old due_date + 2 weeks
     cur.execute(
         """
         UPDATE Loan
@@ -225,14 +215,11 @@ def get_filtered_books(filter_attributes: Book = None,
     returns a list of Book objects with books that meet the qualifications of the filtered attributes. If no books meet the
         requirements, then an empty list is returned.
     """
-    """
-    Returns list of Book objects that match the filters.
-    """
+    #qury definition
     query = """
         SELECT isbn, title, author, publication_year, publisher, num_owned
         FROM Book
     """
-
     conditions = []
     params = []
 
@@ -317,14 +304,11 @@ def get_filtered_users(filter_attributes: User = None, use_patterns: bool = Fals
     returns a list of User objects with users who meet the qualifications of the filters. If no users meet the requirements,
      then an empty list is returned.
     """
-    """
-    Returns list of User objects that match the filters.
-    """
+    # query definition
     query = """
         SELECT account_id, name, address, phone_number, email
         FROM User
     """
-
     conditions = []
     params = []
 
@@ -407,14 +391,11 @@ def get_filtered_loans(filter_attributes: Loan = None,
     returns a list of Loan objects with loans that meet the qualifications of the filters. If no loans meet the
     requirements, then an empty list is returned.
     """
-    """
-    Returns list of Loan objects that match the filters.
-    """
+    #define query
     query = """
         SELECT isbn, account_id, checkout_date, due_date
         FROM Loan
     """
-
     conditions = []
     params = []
 
@@ -501,14 +482,11 @@ def get_filtered_loan_histories(filter_attributes: LoanHistory = None,
     returns a list of LoanHistory objects with return entries that meet the qualifications of the filters. If no entries
     meet the requirements, then an empty list is returned
     """
-    """
-    Returns list of LoanHistory objects that match the filters.
-    """
+    # query def
     query = """
         SELECT isbn, account_id, checkout_date, due_date, return_date
         FROM LoanHistory
     """
-
     conditions = []
     params = []
 
@@ -599,14 +577,11 @@ def get_filtered_waitlist(filter_attributes: Waitlist = None,
     returns a list of Waitlist objects with waitlist entries that meet the qualifications of the filters. If no entries meet
      the requirements, then an empty list is returned.
     """
-    """
-    Returns list of Waitlist objects that match the filters.
-    """
+    # define query
     query = """
         SELECT isbn, account_id, place_in_line
         FROM Waitlist
     """
-
     conditions = []
     params = []
 
